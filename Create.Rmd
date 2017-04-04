@@ -1,0 +1,105 @@
+---
+title: "T-series Volatility Document"
+output: html_document
+data: VolatilityDoc
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## S&P 500
+
+This is a time series and plotting exercise.  Basic logrithmic and volatility functions were given to us for the volatility of the S&P 500 from 1991 - present day. The goal is to run the code and plot the results to see the incremental information revealed through plotting.
+```{r dependencies, message=F}
+needed_packages = c('tseries', 'ggplot2', 'forecast', 'rmarkdown')
+for (needed_package in needed_packages) {
+  if(needed_package %in% rownames(installed.packages()) == FALSE) {
+    install.packages(needed_package, repos = structure(c(CRAN = "http://cran.r-project.org")))
+  }
+}
+
+library(tseries)
+library(ggplot2)
+library(forecast)
+library(rmarkdown)
+
+```
+
+## Calculations of Volatility
+
+You can also embed plots, for example:
+
+```{r}
+## S&P 500 (^GSPC)
+###    SNP - SNP Real Time Price. Currency in USD
+
+# TODO: Download the data of SP500 '^gspc'.
+SNPdata <- get.hist.quote("^gspc",quote="Close")
+
+# TODO: Calculate the log returns, which is the subtractration of log(lag(SNPdata)) and log(SNPdata)
+SNPret <- log(lag(SNPdata) - log(SNPdata))
+
+# TODO: Calculate volatility measure that is to multiply sd(SNPret),sqrt(250), 100
+SNPvol <- sd(SNPret) * sqrt(250) *100
+
+## Define getVol function for volatility
+getVol <- function(d, logrets) {
+	var = 0
+	lam = 0
+	varlist <- c()
+
+	for (r in logrets) {
+		lam = lam*(1 - 1/d) + 1
+	  var = (1 - 1/lam)*var + (1/lam)*r^2
+		varlist <- c(varlist, var)
+	}
+
+	sqrt(varlist)
+}
+
+
+# Calculate volatility over entire length of series for various three different decay factors: 10 30. 100
+
+# TODO: call getVol function with the parameters: 10,SNPret
+# TODO: call getVol function with the parameters: 30,SNPret
+# TODO: call getVol function with the parameters: 100,SNPret
+volest <- getVol (10, SNPret)
+volest2 <- getVol(30, SNPret)
+volest3 <- getVol(100,SNPret)
+
+```
+
+##Plotting & Graphs
+Now we plot the data.
+
+```{r}
+# Plot the results, overlaying the volatility curves on the data, just as was done in the S&P example.
+plot(volest,type="l")
+
+# TODO: Add connected line segments for volest2 with the parameters: type="l",col="red"
+# hint: look at oilExerciseCode.R file at the live discussion
+# TODO: Add connected line segments for volest3 with the parameters: type="l",col="blue"
+lines (volest2, type="l", col="red")
+lines (volest3, type="l", col="blue")
+```
+To experiment around further with time series capabilities, Exponential Smoothing and Holt Winters were applied.  These techniques were found at this site:
+http://a-little-book-of-r-for-time-series.readthedocs.io/en/latest/src/timeseries.html
+
+#Experimental Smoothing
+```{r}
+sm_data <- window(volest, start=1991,end=2017)
+time_data <- ts(sm_data,start=c(1991))
+plot.ts(time_data, ylab="Volatility", xlab="Year")
+```
+
+#Holt Winter
+For additive model prediction with no seasonality, Holt Winter is used. When the "gamma" attribute is set to "FALSE", then the Holt Winter function does not smooth and it becomes more of a predictive fit model.
+The last plot is Holt Winter for the time series across the entire data set.
+
+```{r}
+time_data_forecast <- HoltWinters(time_data, beta=FALSE, gamma=FALSE)
+plot(time_data_forecast)
+time_data_forecast2<- forecast.HoltWinters(time_data_forecast, h=16)
+plot.forecast(time_data_forecast2)
+```
